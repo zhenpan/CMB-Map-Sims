@@ -13,11 +13,12 @@ class Grid(object):
 		self.x 	      *= self.deltx
 		self.y 	      *= self.deltx
 
-		kside	       = (2*np.pi/self.deltx) * np.fft.fftfreq(pix_len)
-		self.k1, self.k2 = np.meshgrid(kside, kside)
 		self.period    = self.deltx * self.pix_len
 		self.deltk     = 2*np.pi/self.period
-		self.k         = np.sqrt(self.k1**2+self.k2**2)
+		kside	       = (2*np.pi/self.deltx) * np.fft.fftfreq(pix_len)
+
+		self.k1, self.k2 = np.meshgrid(kside, kside)
+		self.k           = np.sqrt(self.k1**2+self.k2**2)
 
 
 class Spectrum(object):
@@ -26,15 +27,26 @@ class Spectrum(object):
 		beamSQ    = np.exp( (self.Grid.k1**2+self.Grid.k2**2)* (beamFWHM*np.pi/(180.*60.))**2/(8*np.log(2.)) )
 		self.cNT  = ( Delta_T*np.pi/(180.*60.) )**2 * beamSQ  #Delta_T (muk-arcmin)
 		
-		logCTT 	     = np.interp(self.Grid.k, ell, np.log(CTT))
-		logCTT[0][0] = - np.inf
+		logCTT 	     = np.interp(self.Grid.k, ell, np.log(CTT), left=-np.inf)
+		#logCTT[0][0] = - np.inf
 		self.CTT     = np.exp(logCTT)
+
+		print self.CTT
+
+		plt.plot(self.Grid.k[:,], self.CTT[:,])
+		plt.plot(ell, CTT)
+		plt.show()
 
 class maps(object):
 	def __init__(self, spec):
-		zt = (spec.Grid.deltk/spec.Grid.deltx)*fft_scale.fft2(np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len), spec.Grid.deltx)
-		tk = zt * np.sqrt(spec.CTT)/spec.Grid.deltk
-		tx = fft_scale.ifft2(tk, spec.Grid.deltk)		
+		#zt = fft_scale.fft2(np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len), spec.Grid.deltx)
+		#tk = zt #* np.sqrt(spec.CTT)
+		#tx = fft_scale.ifft2(tk, spec.Grid.deltk)		
+
+		zt = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
+		tk = np.fft.fft2(zt)*np.sqrt(spec.CTT)
+		tx = np.fft.ifft2(tk)		
+
 
 		self.Tmap = tx.real
 		plt.imshow(self.Tmap, origin='lower', extent=[0,20,0,20])
@@ -45,7 +57,7 @@ def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
 
 	CTT  = DTT*(2.*np.pi)/(ell*(ell+1))
-	spec = Spectrum(2., 100, 1., 8., ell, CTT)
+	spec = Spectrum(2., 2**9, 1., 8., ell, CTT)
 	Tmap = maps(spec)
 
 
