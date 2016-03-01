@@ -44,12 +44,14 @@ class maps(object):
 		tk = np.fft.fft2(zt)*np.sqrt(spec.CTT)/spec.Grid.deltx
 		tx = np.fft.ifft2(tk)		
 
-		zp = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
-		pk = np.fft.fft2(zp)*np.sqrt(spec.CPP)/spec.Grid.deltx
-		px = np.fft.ifft2(pk)		
+		zp     = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
+		phik   = np.fft.fft2(zp)*np.sqrt(spec.CPP)/spec.Grid.deltx
+		phix   = np.fft.ifft2(phik)		
+		phidx1 = fft_scale.ifft2()
+		phidx2 = fft_scale.ifft2()
 
-		self.Tmap = tx.real
-		self.Pmap = px.real
+		self.Tmap   = tx.real
+		self.Phimap = Phix.real
 
 		plt.imshow(self.Tmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
 		plt.colorbar()
