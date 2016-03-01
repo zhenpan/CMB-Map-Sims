@@ -51,7 +51,7 @@ class maps(object):
 		self.Tmap = tx.real
 		self.Pmap = px.real
 
-		plt.imshow(self.Pmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
+		plt.imshow(self.Tmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
 		plt.colorbar()
 		plt.show()
 
