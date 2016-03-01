@@ -7,6 +7,7 @@ class Grid(object):
 	def __init__(self, pix_size_arcmin, pix_len):
 		self.pix_size_arcmin = pix_size_arcmin
 		self.pix_len	     = pix_len
+		self.sky_size_arcmin = pix_size_arcmin*pix_len
 
 		self.deltx     = pix_size_arcmin*np.pi/(180.*60.) #in radians
 		self.x, self.y = np.meshgrid(np.arange(pix_len*1.), np.arange(pix_len*1.))
@@ -22,34 +23,35 @@ class Grid(object):
 
 
 class Spectrum(object):
-	def __init__(self, pix_size_arcmin, pix_len, beamFWHM, Delta_T,  ell, CTT):
+	def __init__(self, pix_size_arcmin, pix_len, beamFWHM, Delta_T,  ell, CTT, CPP):
 		self.Grid = Grid(pix_size_arcmin, pix_len)
-		beamSQ    = np.exp( (self.Grid.k1**2+self.Grid.k2**2)* (beamFWHM*np.pi/(180.*60.))**2/(8*np.log(2.)) )
-		self.cNT  = ( Delta_T*np.pi/(180.*60.) )**2 * beamSQ  #Delta_T (muk-arcmin)
+
+		beamSQ    = np.exp( (self.Grid.k**2) * (beamFWHM*np.pi/(180.*60.))**2/(8*np.log(2.)) )
+		self.CNT  = ( Delta_T*np.pi/(180.*60.) )**2 * beamSQ  #Delta_T (muk-arcmin --> muk-radian)
 		
-		logCTT 	     = np.interp(self.Grid.k, ell, np.log(CTT), left=-np.inf)
-		#logCTT[0][0] = - np.inf
-		self.CTT     = np.exp(logCTT)
+		logCTT    = np.interp(self.Grid.k, ell, np.log(CTT), left=-np.inf)
+		self.CTT  = np.exp(logCTT)
 
-		print self.CTT
-
-		plt.plot(self.Grid.k[:,], self.CTT[:,])
-		plt.plot(ell, CTT)
-		plt.show()
+		logCPP    = np.interp(self.Grid.k, ell, np.log(CPP), left=-np.inf)
+		self.CPP  = np.exp(logCPP)
 
 class maps(object):
 	def __init__(self, spec):
-		#zt = fft_scale.fft2(np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len), spec.Grid.deltx)
-		#tk = zt #* np.sqrt(spec.CTT)
-		#tx = fft_scale.ifft2(tk, spec.Grid.deltk)		
+		znt= np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
+		ntk= np.fft.fft2(znt)*np.sqrt(spec.CNT)/spec.Grid.deltx
 
 		zt = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
-		tk = np.fft.fft2(zt)*np.sqrt(spec.CTT)
+		tk = np.fft.fft2(zt)*np.sqrt(spec.CTT)/spec.Grid.deltx
 		tx = np.fft.ifft2(tk)		
 
+		zp = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
+		pk = np.fft.fft2(zp)*np.sqrt(spec.CPP)/spec.Grid.deltx
+		px = np.fft.ifft2(pk)		
 
 		self.Tmap = tx.real
-		plt.imshow(self.Tmap, origin='lower', extent=[0,20,0,20])
+		self.Pmap = px.real
+
+		plt.imshow(self.Pmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
 		plt.colorbar()
 		plt.show()
 
@@ -57,7 +59,9 @@ def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
 
 	CTT  = DTT*(2.*np.pi)/(ell*(ell+1))
-	spec = Spectrum(2., 2**9, 1., 8., ell, CTT)
+	CPP  = Cdd/(7.4311e12*ell**4)
+
+	spec = Spectrum(2., 2**9, 1., 8., ell, CTT, CPP)
 	Tmap = maps(spec)
 
 
