@@ -47,15 +47,21 @@ class maps(object):
 		zp     = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
 		phik   = np.fft.fft2(zp)*np.sqrt(spec.CPP)/spec.Grid.deltx
 		phix   = np.fft.ifft2(phik)		
-		phidx1 = fft_scale.ifft2()
-		phidx2 = fft_scale.ifft2()
+		phidx1 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k1* phik, spec.Grid.deltx)
+		phidx2 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k2* phik, spec.Grid.deltx)
 
-		self.Tmap   = tx.real
-		self.Phimap = Phix.real
+		self.tx     = tx.real
+		self.phix   = phix.real
+		self.phidx1 = phidx1.real
+		self.phidx2 = phidx2.real
 
-		plt.imshow(self.Tmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
-		plt.colorbar()
-		plt.show()
+		self.tildetx = 
+		self.tildetk = 
+		self.ytk     = self.tildetk + self.ntk
+
+		#plt.imshow(self.Tmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
+		#plt.colorbar()
+		#plt.show()
 
 def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
