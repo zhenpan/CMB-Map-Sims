@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pylab as plt
+from scipy import interpolate
 
 def perodic_padd(x, y, z, pad_portion = 0.05):
 	old_len = len(x[0,:])
@@ -9,12 +10,11 @@ def perodic_padd(x, y, z, pad_portion = 0.05):
 	
 	full_x, full_y = np.meshgrid(deltx*index, deltx*index)
 	full_z  = np.lib.pad(z, ((add_len, add_len),(add_len, add_len)), 'symmetric')	
-	return full_z
+	return full_x, full_y, full_z
 
-x, y = np.meshgrid(np.arange(100), np.arange(100))
-z = np.sin(x+y)
-zd= perodic_padd(x,y,z, 0.05)
+def spline_interp2(xtmp, ytmp, ztmp, xi, yi, pad_portion = 0.05):
+	x, y, z = pperodic_padd(xtmp, ytmp, ztmp, pad_portion)
+	iz  = interpolate.rectBivariatepline(y[0,:], x[:,0], z)
+	zi  = iz(yi, xi)
+	return zi
 
-
-plt.imshow(zd)
-plt.show()
