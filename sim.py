@@ -1,4 +1,5 @@
 import fft_scale
+import func
 import numpy as np
 import matplotlib.pylab as plt
 
@@ -36,7 +37,7 @@ class Spectrum(object):
 		self.CPP  = np.exp(logCPP)
 
 class maps(object):
-	def __init__(self, spec):
+	def __init__(self, spec, pad_portion):
 		znt= np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
 		ntk= np.fft.fft2(znt)*np.sqrt(spec.CNT)/spec.Grid.deltx
 
@@ -47,21 +48,24 @@ class maps(object):
 		zp     = np.random.randn(spec.Grid.pix_len, spec.Grid.pix_len)
 		phik   = np.fft.fft2(zp)*np.sqrt(spec.CPP)/spec.Grid.deltx
 		phix   = np.fft.ifft2(phik)		
-		phidx1 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k1* phik, spec.Grid.deltx)
-		phidx2 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k2* phik, spec.Grid.deltx)
+		phidx1 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k1* phik, spec.Grid.deltx )
+		phidx2 = fft_scale.ifft2( (0.+1.j)* spec.Grid.k2* phik, spec.Grid.deltx )
 
 		self.tx     = tx.real
 		self.phix   = phix.real
 		self.phidx1 = phidx1.real
 		self.phidx2 = phidx2.real
 
-		self.tildetx = 
-		self.tildetk = 
-		self.ytk     = self.tildetk + self.ntk
+		print np.max(abs(self.phidx1/spec.Grid.deltx))
+		print np.max(abs(self.phidx2/spec.Grid.deltx))
 
-		#plt.imshow(self.Tmap, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
-		#plt.colorbar()
-		#plt.show()
+		self.tildetx = func.spline_interp2(spec.Grid.x, spec.Grid.y, self.tx, spec.Grid.x+self.phidx1, spec.Grid.y+self.phidx2, pad_portion) 
+		self.tildetk = fft_scale.fft2(self.tildetx, spec.Grid.deltx)
+		self.ytk     = self.tildetk + ntk
+
+		plt.imshow(self.tildetx, origin='lower', extent=[0, spec.Grid.sky_size_arcmin/60.,0, spec.Grid.sky_size_arcmin/60.])
+		plt.colorbar()
+		plt.show()
 
 def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
@@ -70,7 +74,7 @@ def setpar():
 	CPP  = Cdd/(7.4311e12*ell**4)
 
 	spec = Spectrum(2., 2**9, 1., 8., ell, CTT, CPP)
-	Tmap = maps(spec)
+	Tmap = maps(spec, 0.05)
 
 
 	
