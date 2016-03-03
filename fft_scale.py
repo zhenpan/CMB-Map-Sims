@@ -5,10 +5,10 @@ def fft2(fx, deltx):
 	fk = np.fft.fft2(fx)
 	return fk*c
 
-def ifft2(fk, deltk):
-	c  = deltk**2/(2.*np.pi)
+def ifft2(fk, deltx):
+	c  = deltx**2/(2.*np.pi)
 	fx = np.fft.ifft2(fk)
-	return fx*c
+	return fx*1./c
 
 
 def rft2(fx, deltx):
@@ -16,9 +16,9 @@ def rft2(fx, deltx):
 	fk = np.fft.rfft2(fx)
 	return fk*c
 
-def irft2(fk, deltk):
-	c  = deltk**2/(2.*np.pi)
+def irft2(fk, deltx):
+	c  = deltx**2/(2.*np.pi)
 	fx = np.fft.irfft2(fk)
-	return fx
+	return fx*1./c
 
 
