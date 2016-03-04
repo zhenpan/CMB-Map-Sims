@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 from scipy import interpolate
+import fft_scale
 
 def perodic_padd(x, y, z, pad_portion = 0.05):
 	old_len = len(x[0,:])
@@ -17,4 +18,11 @@ def spline_interp2(xtmp, ytmp, ztmp, xi, yi, pad_portion = 0.05): # xtmp, ytmp a
 	iz      = interpolate.RectBivariateSpline(y[:,0], x[0,:], z)
 	zi      = iz.ev(yi, xi)
 	return zi
+
+
+def wiener(dk, grd, spec):
+	white =  (grd.deltk/grd.deltx)*fft_scale.fft(np.random.randn(*maps.shape), grd.deltx)
+	wk    = white*np.sqrt(1./(1./spec.CTT +1./spec.CNT))
+	tk    = dk * spec.CTT/(spec.CTT + spec.CNT) + wk 
+	
 
