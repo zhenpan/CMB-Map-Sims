@@ -11,14 +11,9 @@ def ifft2(fk, deltx):
 	return fx*1./c
 
 
-def rft2(fx, deltx):
-	c  = deltx**2/(2.*np.pi) 
-	fk = np.fft.rfft2(fx)
-	return fk*c
-
-def irft2(fk, deltx):
+def ifft2r(fk, deltx):
 	c  = deltx**2/(2.*np.pi)
-	fx = np.fft.irfft2(fk)
-	return fx*1./c
+	fx = np.fft.ifft2(fk)
+	return np.real(fx*1./c)
 
 
