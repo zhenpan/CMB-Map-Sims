@@ -2,7 +2,7 @@ import fft_scale
 import func
 import numpy as np
 import matplotlib.pylab as plt
-
+from numba import jit
 
 class Grid(object):
 	def __init__(self, pix_size_arcmin, pix_len, beamFWHM, Delta_T, ell, CTT, CEE, CPP):
@@ -44,7 +44,29 @@ class Spectrum(object):
 		self.CPP  = np.exp(logCPP)
 
 class TQUandFriends(object):
-	def __init__(self, Tk, Qk, Uk, grd):
+	def __init__(self, grd):
+		self.Tx = np.zeros(grd.x.shape) 
+		self.Qx = np.zeros(grd.x.shape) 
+		self.Ux = np.zeros(grd.x.shape) 
+		
+		self.d1Tx = np.zeros(grd.x.shape) 
+		self.d2Tx = np.zeros(grd.x.shape) 
+		self.d1Qx = np.zeros(grd.x.shape) 
+		self.d1Qx = np.zeros(grd.x.shape) 
+		self.d2Ux = np.zeros(grd.x.shape) 
+		self.d2Ux = np.zeros(grd.x.shape) 
+
+		self.d11Tx = np.zeros(grd.x.shape) 
+		self.d12Tx = np.zeros(grd.x.shape) 
+		self.d22Tx = np.zeros(grd.x.shape) 
+		self.d11Qx = np.zeros(grd.x.shape) 
+		self.d12Qx = np.zeros(grd.x.shape) 
+		self.d22Qx = np.zeros(grd.x.shape) 
+		self.d11Ux = np.zeros(grd.x.shape) 
+		self.d12Ux = np.zeros(grd.x.shape) 
+		self.d22Ux = np.zeros(grd.x.shape) 
+
+	def fill(self, Tk, Qk, Uk, grd):
 		self.Tx = fft_scale.ifft2r(Tk, grd.deltx)	
 		self.Qx = fft_scale.ifft2r(Qk, grd.deltx)	
 		self.Ux = fft_scale.ifft2r(Uk, grd.deltx)	
@@ -66,10 +88,40 @@ class TQUandFriends(object):
 		self.d12Ux = fft.scale.ifft2r(-1.*grd.k1* grd.k2*Uk, grd.deltx )
 		self.d22Ux = fft.scale.ifft2r(-1.*grd.k2* grd.k2*Uk, grd.deltx )
 
-def dcplense():
-	
+@jit
+def scd_ord_lense(Tx, d1Tx, d2Tx, d11Tx, d12Tx, d22Tx, intx, inty, rdisplx, rdisply):
+	M, N = Tx.shape
+	lTx  = np.zeros((M,N))
 
-def maps(grid, pad_portion):
+	for i in range(M):
+		for j in range(N):
+			lTx   [i,j] 	= Tx   [intx[i,j], inty[i,j]]
+			d1lTx [i,j] 	= d1Tx [intx[i,j], inty[i,j]]
+			d2lTx [i,j] 	= d2Tx [intx[i,j], inty[i,j]]
+			d11lTx[i,j]	= d11Tx[intx[i,j], inty[i,j]]
+			d12lTx[i,j]	= d12Tx[intx[i,j], inty[i,j]]
+			d22lTx[i,j]	= d22Tx[intx[i,j], inty[i,j]]
+
+			lTx[i,j] += d1lTx[i,j] * rdisplx[i,j] + d2lTx[i,j] * rdisply[i,j]
+			lTx[i,j] += 0.5 * (rdisplx[i,j] * d11lTx[i,j] * rdisplx[i,j])	
+			lTx[i,j] +=       (rdisplx[i,j] * d12lTx[i,j] * rdisply[i,j])	
+			lTx[i,j] += 0.5 * (rdisply[i,j] * d22lTx[i,j] * rdisply[i,j])	
+	return lTx 
+		
+
+def dcplense(x, y, displx, disply, grd):
+	grdx, grdy = np.meshgrid(np.arange(grd.pix_len), np.arange(grd.pix_len))
+
+	ndisplx =  np.round(displx/grd.deltx).astype(int)	
+	ndisply =  np.round(disply/grd.deltx).astype(int)	
+	rdisplx = displx - grd.deltx * ndisplx 
+	rdisply = disply - grd.delty * ndisply
+	return grdx+ndisplx, grdy+ndisply, rdisplx, rdisply
+
+def scd_ord_len_maps(grid, padportion):
+		
+
+def all_ord_len_maps(grid, pad_portion):
 	spec = Spectrum(grid)
 
 	#noise
