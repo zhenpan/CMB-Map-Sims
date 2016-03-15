@@ -44,32 +44,37 @@ class Spectrum(object):
 		self.CPP  = np.exp(logCPP)
 
 class TQUandFriends(object):
-	def __init__(self, TK, Qk, Uk, grd):
+	def __init__(self, Tk, Qk, Uk, grd):
 		self.Tx = fft_scale.ifft2r(Tk, grd.deltx)	
 		self.Qx = fft_scale.ifft2r(Qk, grd.deltx)	
 		self.Ux = fft_scale.ifft2r(Uk, grd.deltx)	
 	
-		self.d1Tx = fft.scale.ifft2r( (0.+1.j)*grd.k1*Tk, grd.deltx )
-		self.d2Tx = fft.scale.ifft2r( (0.+1.j)*grd.k2*Tk, grd.deltx )
-		self.d1Qx = fft.scale.ifft2r( (0.+1.j)*grd.k1*Qk, grd.deltx )
-		self.d2Qx = fft.scale.ifft2r( (0.+1.j)*grd.k2*Qk, grd.deltx )
-		self.d1Ux = fft.scale.ifft2r( (0.+1.j)*grd.k1*Uk, grd.deltx )
-		self.d2Ux = fft.scale.ifft2r( (0.+1.j)*grd.k2*Uk, grd.deltx )
+		self.d1Tx = fft_scale.ifft2r( (0.+1.j)*grd.k1*Tk, grd.deltx )
+		self.d2Tx = fft_scale.ifft2r( (0.+1.j)*grd.k2*Tk, grd.deltx )
+		self.d1Qx = fft_scale.ifft2r( (0.+1.j)*grd.k1*Qk, grd.deltx )
+		self.d2Qx = fft_scale.ifft2r( (0.+1.j)*grd.k2*Qk, grd.deltx )
+		self.d1Ux = fft_scale.ifft2r( (0.+1.j)*grd.k1*Uk, grd.deltx )
+		self.d2Ux = fft_scale.ifft2r( (0.+1.j)*grd.k2*Uk, grd.deltx )
 
-		self.d11Tx = fft.scale.ifft2r(-1.*grd.k1* grd.k1*Tk, grd.deltx )
-		self.d12Tx = fft.scale.ifft2r(-1.*grd.k1* grd.k2*Tk, grd.deltx )
-		self.d22Tx = fft.scale.ifft2r(-1.*grd.k2* grd.k2*Tk, grd.deltx )
-		self.d11Qx = fft.scale.ifft2r(-1.*grd.k1* grd.k1*Qk, grd.deltx )
-		self.d12Qx = fft.scale.ifft2r(-1.*grd.k1* grd.k2*Qk, grd.deltx )
-		self.d22Qx = fft.scale.ifft2r(-1.*grd.k2* grd.k2*Qk, grd.deltx )
-		self.d11Ux = fft.scale.ifft2r(-1.*grd.k1* grd.k1*Uk, grd.deltx )
-		self.d12Ux = fft.scale.ifft2r(-1.*grd.k1* grd.k2*Uk, grd.deltx )
-		self.d22Ux = fft.scale.ifft2r(-1.*grd.k2* grd.k2*Uk, grd.deltx )
+		self.d11Tx = fft_scale.ifft2r(-1.*grd.k1* grd.k1*Tk, grd.deltx )
+		self.d12Tx = fft_scale.ifft2r(-1.*grd.k1* grd.k2*Tk, grd.deltx )
+		self.d22Tx = fft_scale.ifft2r(-1.*grd.k2* grd.k2*Tk, grd.deltx )
+		self.d11Qx = fft_scale.ifft2r(-1.*grd.k1* grd.k1*Qk, grd.deltx )
+		self.d12Qx = fft_scale.ifft2r(-1.*grd.k1* grd.k2*Qk, grd.deltx )
+		self.d22Qx = fft_scale.ifft2r(-1.*grd.k2* grd.k2*Qk, grd.deltx )
+		self.d11Ux = fft_scale.ifft2r(-1.*grd.k1* grd.k1*Uk, grd.deltx )
+		self.d12Ux = fft_scale.ifft2r(-1.*grd.k1* grd.k2*Uk, grd.deltx )
+		self.d22Ux = fft_scale.ifft2r(-1.*grd.k2* grd.k2*Uk, grd.deltx )
 
 @jit
 def snd_ord_lense(Tx, d1Tx, d2Tx, d11Tx, d12Tx, d22Tx, intx, inty, rdisplx, rdisply):
-	M, N = Tx.shape
-	lTx  = np.zeros((M,N))
+	M, N 	= Tx.shape
+	lTx	= np.zeros((M,N))
+	d1lTx	= np.zeros((M,N))
+	d2lTx   = np.zeros((M,N))
+	d11lTx  = np.zeros((M,N))
+	d12lTx  = np.zeros((M,N))
+	d22lTx  = np.zeros((M,N))
 
 	for i in range(M):
 		for j in range(N):
@@ -92,8 +97,8 @@ def dcplense(displx, disply, grd):
 
 	ndisplx =  np.round(displx/grd.deltx).astype(int)	
 	ndisply =  np.round(disply/grd.deltx).astype(int)	
-	rdisplx =  displx - grd.deltx * ndisplx 
-	rdisply =  disply - grd.delty * ndisply
+	rdisplx =  displx - ndisplx * grd.deltx  
+	rdisply =  disply - ndisply * grd.deltx 
 	return grdx+ndisplx, grdy+ndisply, rdisplx, rdisply
 
 def scd_ord_len_maps(grid, padportion):
@@ -103,14 +108,31 @@ def scd_ord_len_maps(grid, padportion):
 	znt  = np.random.randn(grid.pix_len, grid.pix_len)
 	ntk  = np.fft.fft2(znt)*np.sqrt(spec.CNT)/grid.deltx
 
-	intx, inty, rdisplx, rdisply = dcplense(phidx1, phidx1, grd)
+	rd = ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
+	Tk = fft_scale.fft2(  rd, grid.deltx) * np.sqrt(spec.CTT/grid.deltk**2)
+	Tx = fft_scale.ifft2r(Tk, grid.deltx)		
 
-	TQU     = TQUandFriends(Tk, Qk, Uk, grd)
+	rd = ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
+	Ek = fft_scale.fft2( rd, grid.deltx) * np.sqrt(spec.CEE/grid.deltk**2)
+	Qk = - Ek*np.cos(2.*grid.angle) #+ Bk*np.sin(2.*grid.angle)
+	Uk = - Ek*np.sin(2.*grid.angle) #- Bk*np.cos(2.*grid.angle)
+	Qx = fft_scale.ifft2r(Qk, grid.deltx)
+	Ux = fft_scale.ifft2r(Uk, grid.deltx)
+
+	rd     = (grid.deltk/grid.deltx) * np.random.randn(grid.pix_len, grid.pix_len)
+	phik   = fft_scale.fft2(rd, grid.deltx) * np.sqrt(spec.CPP/grid.deltk**2)
+	phix   = fft_scale.ifft2r(phik, grid.deltx)		
+	phidx1 = fft_scale.ifft2r( (0.+1.j)* grid.k1* phik, grid.deltx )
+	phidx2 = fft_scale.ifft2r( (0.+1.j)* grid.k2* phik, grid.deltx )
+
+	intx, inty, rdisplx, rdisply = dcplense(phidx1, phidx2, grid)
+
+	TQU     = TQUandFriends(Tk, Qk, Uk, grid)
 	tildeTx = snd_ord_lense(TQU.Tx, TQU.d1Tx, TQU.d2Tx, TQU.d11Tx, TQU.d12Tx, TQU.d22Tx, intx, inty, rdisplx, rdisply)
 	tildeQx = snd_ord_lense(TQU.Qx, TQU.d1Qx, TQU.d2Qx, TQU.d11Qx, TQU.d12Qx, TQU.d22Qx, intx, inty, rdisplx, rdisply)
 	tildeUx = snd_ord_lense(TQU.Ux, TQU.d1Ux, TQU.d2Ux, TQU.d11Ux, TQU.d12Ux, TQU.d22Ux, intx, inty, rdisplx, rdisply)
 
-	return 
+	return tildeTx, tildeQx, tildeUx 
 	
 def all_ord_len_maps(grid, pad_portion):
 	spec = Spectrum(grid)
@@ -187,7 +209,8 @@ def setpar():
 	CPP  = Cdd/(7.4311e12*ell**4)
 	grd  = Grid(2., 2**9, 1., 8., ell, CTT, CEE, CPP)
 
-	maps(grd, 0.05)
+	#all_ord_len_maps(grd, 0.05)
+	scd_ord_len_maps(grd, 0.05)
 
 
 setpar()
