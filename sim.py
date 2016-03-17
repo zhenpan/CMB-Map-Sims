@@ -26,7 +26,7 @@ class Grid(object):
 		kside	       = (2*np.pi/self.deltx) * np.fft.fftfreq(pix_len)
 
 		self.k1, self.k2 = np.meshgrid(kside, kside)
-		self.k           = np.sqrt(self.k1**2+self.k2**2)
+		self.k           = np.ceil(np.sqrt(self.k1**2+self.k2**2))
 		self.angle	 = np.angle(self.k1 + 1.j*self.k2)
 
 class Spectrum(object):
@@ -87,9 +87,9 @@ def snd_ord_lense(tx, d1tx, d2tx, d11tx, d12tx, d22tx, intx, inty, rdisplx, rdis
 
 			ltx[i,j] += d1ltx[i,j] * rdisplx[i,j] 
 			ltx[i,j] += d2ltx[i,j] * rdisply[i,j]
-			#ltx[i,j] += 0.5 * (rdisplx[i,j] * d11ltx[i,j] * rdisplx[i,j])	
-			#ltx[i,j] +=       (rdisplx[i,j] * d12ltx[i,j] * rdisply[i,j])	
-			#ltx[i,j] += 0.5 * (rdisply[i,j] * d22ltx[i,j] * rdisply[i,j])	
+			ltx[i,j] += 0.5 * (rdisplx[i,j] * d11ltx[i,j] * rdisplx[i,j])	
+			ltx[i,j] +=       (rdisplx[i,j] * d12ltx[i,j] * rdisply[i,j])	
+			ltx[i,j] += 0.5 * (rdisply[i,j] * d22ltx[i,j] * rdisply[i,j])	
 	return ltx 
 		
 
@@ -98,9 +98,11 @@ def dcplense(displx, disply, grd):
 
 	ndisplx =  np.round(displx/grd.deltx).astype(int)	
 	ndisply =  np.round(disply/grd.deltx).astype(int)	
+	intx	= (grdx + ndisplx) % grd.pix_len  		#index wrap
+	inty	= (grdy + ndisply) % grd.pix_len 
 	rdisplx =  displx - ndisplx * grd.deltx  
 	rdisply =  disply - ndisply * grd.deltx 
-	return grdx+ndisplx, grdy+ndisply, rdisplx, rdisply
+	return intx, inty, rdisplx, rdisply  
 
 def scd_ord_len_maps(grid, padportion):
 	spec = Spectrum(grid)
@@ -133,20 +135,24 @@ def scd_ord_len_maps(grid, padportion):
 	tildeQx = snd_ord_lense(TQU.Qx, TQU.d1Qx, TQU.d2Qx, TQU.d11Qx, TQU.d12Qx, TQU.d22Qx, intx, inty, rdisplx, rdisply)
 	tildeUx = snd_ord_lense(TQU.Ux, TQU.d1Ux, TQU.d2Ux, TQU.d11Ux, TQU.d12Ux, TQU.d22Ux, intx, inty, rdisplx, rdisply)
 
+	conplot(phix, tildeTx-Tx, Tx, tildeTx, grid)
+	conplot(phix, tildeTx-Tx, tildeQx-Qx, tildeUx-Ux, grid)
+	return tildeTx, tildeQx, tildeUx 
+
+def conplot(ax, bx, cx, dx, grid):
 	plt.subplot(2,2,1)
-	plt.imshow(phix, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
+	plt.imshow(ax, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
 	plt.colorbar(format='%.0e')
 	plt.subplot(2,2,2)
-	plt.imshow( (tildeTx-Tx), origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
+	plt.imshow(bx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
 	plt.colorbar()
 	plt.subplot(2,2,3)
-	plt.imshow( tildeQx-Qx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
+	plt.imshow(cx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
 	plt.colorbar()
 	plt.subplot(2,2,4)
-	plt.imshow( tildeUx-Ux, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
+	plt.imshow(dx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
 	plt.colorbar()
 	plt.show()
-	return tildeTx, tildeQx, tildeUx 
 	
 def all_ord_len_maps(grid, pad_portion):
 	spec = Spectrum(grid)
@@ -179,21 +185,6 @@ def all_ord_len_maps(grid, pad_portion):
 	phidx2 = fft_scale.ifft2r( (0.+1.j)* gridhr.k2* phik, gridhr.deltx )
 
 
-	plt.subplot(2,2,1)
-	plt.imshow(phix, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar(format='%.0e')
-	plt.subplot(2,2,2)
-	plt.imshow(tx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.subplot(2,2,3)
-	plt.imshow(Qx[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.subplot(2,2,4)
-	plt.imshow(Ux[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.show()
-
-
 	#lensing T
 	tildetx = func.spline_interp2(gridhr.x, gridhr.y, tx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
 	tildetk = fft_scale.fft2(tildetx[::hrfactor, ::hrfactor], grid.deltx)
@@ -203,19 +194,20 @@ def all_ord_len_maps(grid, pad_portion):
 	tildeQx = func.spline_interp2(gridhr.x, gridhr.y, Qx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
 	tildeUx = func.spline_interp2(gridhr.x, gridhr.y, Ux, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
 
-	plt.subplot(2,2,1)
-	plt.imshow(phix[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar(format='%.0e')
-	plt.subplot(2,2,2)
-	plt.imshow( (tildetx-tx)[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.subplot(2,2,3)
-	plt.imshow( (tildeQx-Qx)[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.subplot(2,2,4)
-	plt.imshow( (tildeUx-Ux)[::hrfactor, ::hrfactor], origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
-	plt.colorbar()
-	plt.show()
+	conplot(phix, tildetx-tx, tx, tildetx, grid)
+	conplot(phix, (tildetx-tx)[::hrfactor, ::hrfactor], (tildeQx-Qx)[::hrfactor, ::hrfactor], (tildeUx-Ux)[::hrfactor, ::hrfactor], grid)
+
+
+def setbin(grid, lmax):
+	ell = grid.k.flatten()
+	nm, bins = np.histogram(ell, bins=np.arange(lmax-5, lmax))
+	print 'nm', nm.size, nm
+	tmp,bins = np.histogram(ell, bins=np.arange(lmax-5, lmax), weights = ell)
+	print 'bins', bins
+	print  tmp.size, tmp 
+	tmp[np.nonzero(nm)] /= nm[np.nonzero(nm)]
+	print 'ell', tmp
+	
 
 def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
@@ -224,9 +216,11 @@ def setpar():
 	CEE  = DEE*(2.*np.pi)/(ell*(ell+1))
 	CPP  = Cdd/(7.4311e12*ell**4)
 	grd  = Grid(2., 2**9, 1., 8., ell, CTT, CEE, CPP)
+	
+	setbin(grd, 300)
 
-	all_ord_len_maps(grd, 0.05)
-	scd_ord_len_maps(grd, 0.05)
+	#all_ord_len_maps(grd, 0.05)
+	#scd_ord_len_maps(grd, 0.05)
 
 
 setpar()
