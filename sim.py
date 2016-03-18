@@ -3,6 +3,8 @@ import func
 import numpy as np
 import matplotlib.pylab as plt
 from numba import jit
+from sts import Cl_est
+from sts import Amp_avg
 
 class Grid(object):
 	def __init__(self, pix_size_arcmin, pix_len, beamFWHM, Delta_T, ell, CTT, CEE, CPP):
@@ -76,8 +78,8 @@ def snd_ord_lense(tx, d1tx, d2tx, d11tx, d12tx, d22tx, intx, inty, rdisplx, rdis
 	d12ltx  = np.zeros((M,N))
 	d22ltx  = np.zeros((M,N))
 
-	for i in range(M-1):
-		for j in range(N-1):
+	for i in range(M):
+		for j in range(N):
 			ltx   [i,j] 	= tx   [inty[i,j], intx[i,j]] #be careful with the index order x-> col, y->row
 			d1ltx [i,j] 	= d1tx [inty[i,j], intx[i,j]]
 			d2ltx [i,j] 	= d2tx [inty[i,j], intx[i,j]]
@@ -104,40 +106,93 @@ def dcplense(displx, disply, grd):
 	rdisply =  disply - ndisply * grd.deltx 
 	return intx, inty, rdisplx, rdisply  
 
-def scd_ord_len_maps(grid, padportion):
-	spec = Spectrum(grid)
+class scd_ord_len_maps(object):
+	def __init__(self, grid, padportion):
+		spec = Spectrum(grid)
 
-	#noise
-	znt  = np.random.randn(grid.pix_len, grid.pix_len)
-	ntk  = np.fft.fft2(znt)*np.sqrt(spec.CNT)/grid.deltx
+		#noise
+		znt  = np.random.randn(grid.pix_len, grid.pix_len)
+		ntk  = np.fft.fft2(znt)*np.sqrt(spec.CNT)/grid.deltx
 
-	rd = ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
-	Tk = fft_scale.fft2(  rd, grid.deltx) * np.sqrt(spec.CTT/grid.deltk**2)
-	Tx = fft_scale.ifft2r(Tk, grid.deltx)		
+		rd      = ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
+		self.Tk = fft_scale.fft2(  rd, grid.deltx) * np.sqrt(spec.CTT/grid.deltk**2)
+		self.Tx = fft_scale.ifft2r(self.Tk, grid.deltx)		
 	
-	rd = ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
-	Ek = fft_scale.fft2( rd, grid.deltx) * np.sqrt(spec.CEE/grid.deltk**2)
-	Qk = - Ek*np.cos(2.*grid.angle) #+ Bk*np.sin(2.*grid.angle)
-	Uk = - Ek*np.sin(2.*grid.angle) #- Bk*np.cos(2.*grid.angle)
-	Qx = fft_scale.ifft2r(Qk, grid.deltx)
-	Ux = fft_scale.ifft2r(Uk, grid.deltx)
+		rd 	= ( grid.deltk/grid.deltx ) * np.random.randn( grid.pix_len, grid.pix_len )
+		Ek 	= fft_scale.fft2( rd, grid.deltx) * np.sqrt(spec.CEE/grid.deltk**2)
+		self.Qk	= -1.* Ek * np.cos(2.*grid.angle) #+ Bk*np.sin(2.*grid.angle)
+		self.Uk	= -1.* Ek * np.sin(2.*grid.angle) #- Bk*np.cos(2.*grid.angle)
+		self.Qx = fft_scale.ifft2r(self.Qk, grid.deltx)
+		self.Ux = fft_scale.ifft2r(self.Uk, grid.deltx)
 
-	rd     = (grid.deltk/grid.deltx) * np.random.randn(grid.pix_len, grid.pix_len)
-	phik   = fft_scale.fft2(rd, grid.deltx) * np.sqrt(spec.CPP/grid.deltk**2)
-	phix   = fft_scale.ifft2r(phik, grid.deltx)		
-	phidx1 = fft_scale.ifft2r( (0.+1.j)* grid.k1* phik, grid.deltx )
-	phidx2 = fft_scale.ifft2r( (0.+1.j)* grid.k2* phik, grid.deltx )
+		rd    	    = (grid.deltk/grid.deltx) * np.random.randn(grid.pix_len, grid.pix_len)
+		self.phik   = fft_scale.fft2(rd, grid.deltx) * np.sqrt(spec.CPP/grid.deltk**2)
+		self.phix   = fft_scale.ifft2r(self.phik, grid.deltx)		
+		phidx1 	    = fft_scale.ifft2r( (0.+1.j)* grid.k1* self.phik, grid.deltx )
+		phidx2 	    = fft_scale.ifft2r( (0.+1.j)* grid.k2* self.phik, grid.deltx )
 
-	intx, inty, rdisplx, rdisply = dcplense(phidx1, phidx2, grid)
+		intx, inty, rdisplx, rdisply = dcplense(phidx1, phidx2, grid)
 
-	TQU     = TQUandFriends(Tk, Qk, Uk, grid)
-	tildeTx = snd_ord_lense(TQU.Tx, TQU.d1Tx, TQU.d2Tx, TQU.d11Tx, TQU.d12Tx, TQU.d22Tx, intx, inty, rdisplx, rdisply)
-	tildeQx = snd_ord_lense(TQU.Qx, TQU.d1Qx, TQU.d2Qx, TQU.d11Qx, TQU.d12Qx, TQU.d22Qx, intx, inty, rdisplx, rdisply)
-	tildeUx = snd_ord_lense(TQU.Ux, TQU.d1Ux, TQU.d2Ux, TQU.d11Ux, TQU.d12Ux, TQU.d22Ux, intx, inty, rdisplx, rdisply)
+		TQU        = TQUandFriends(self.Tk, self.Qk, self.Uk, grid)
+		self.tldTx = snd_ord_lense(TQU.Tx, TQU.d1Tx, TQU.d2Tx, TQU.d11Tx, TQU.d12Tx, TQU.d22Tx, intx, inty, rdisplx, rdisply)
+		self.tldQx = snd_ord_lense(TQU.Qx, TQU.d1Qx, TQU.d2Qx, TQU.d11Qx, TQU.d12Qx, TQU.d22Qx, intx, inty, rdisplx, rdisply)
+		self.tldUx = snd_ord_lense(TQU.Ux, TQU.d1Ux, TQU.d2Ux, TQU.d11Ux, TQU.d12Ux, TQU.d22Ux, intx, inty, rdisplx, rdisply)
 
-	conplot(phix, tildeTx-Tx, Tx, tildeTx, grid)
-	conplot(phix, tildeTx-Tx, tildeQx-Qx, tildeUx-Ux, grid)
-	return tildeTx, tildeQx, tildeUx 
+		self.tldTk = fft_scale.fft2(self.tldTx, grid.deltx)
+		self.tldQk = fft_scale.fft2(self.tldQx, grid.deltx)
+		self.tldUk = fft_scale.fft2(self.tldUx, grid.deltx)
+
+
+	
+class all_ord_len_maps(object):
+	def __init__(self, grid, pad_portion):
+		spec = Spectrum(grid)
+	
+		#noise
+		znt  = np.random.randn(grid.pix_len, grid.pix_len)
+		ntk  = np.fft.fft2(znt)*np.sqrt(spec.CNT)/grid.deltx
+
+		#high-res TQU and Phi for lensing
+		hrfactor= 3
+		gridhr  = Grid(grid.pix_size_arcmin/hrfactor, grid.pix_len*hrfactor, grid.FWHM, grid.Delta_T, grid.ell, grid.CTT, grid.CEE, grid.CPP)
+		spechr  = Spectrum(gridhr)
+
+		rd = ( gridhr.deltk/gridhr.deltx ) * np.random.randn( gridhr.pix_len, gridhr.pix_len )
+		Tk = fft_scale.fft2( rd, gridhr.deltx) * np.sqrt(spechr.CTT/gridhr.deltk**2)
+		Tx = fft_scale.ifft2r(Tk, gridhr.deltx)		
+
+		rd = ( gridhr.deltk/gridhr.deltx ) * np.random.randn( gridhr.pix_len, gridhr.pix_len )
+		Ek = fft_scale.fft2( rd, gridhr.deltx) * np.sqrt(spechr.CEE/gridhr.deltk**2)
+		Qk = - Ek*np.cos(2.*gridhr.angle) #+ Bk*np.sin(2.*gridhr.angle)
+		Uk = - Ek*np.sin(2.*gridhr.angle) #- Bk*np.cos(2.*gridhr.angle)
+		Qx = fft_scale.ifft2r(Qk, gridhr.deltx)
+		Ux = fft_scale.ifft2r(Uk, gridhr.deltx)
+
+
+		rd     = (gridhr.deltk/gridhr.deltx) * np.random.randn(gridhr.pix_len, gridhr.pix_len)
+		phik   = fft_scale.fft2(rd, gridhr.deltx) * np.sqrt(spechr.CPP/gridhr.deltk**2)
+		phix   = fft_scale.ifft2r(phik, gridhr.deltx)		
+		phidx1 = fft_scale.ifft2r( (0.+1.j)* gridhr.k1* phik, gridhr.deltx )
+		phidx2 = fft_scale.ifft2r( (0.+1.j)* gridhr.k2* phik, gridhr.deltx )
+
+
+		#lensing TQU
+		self.tldTx = func.spline_interp2(gridhr.x, gridhr.y, Tx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
+		self.tldQx = func.spline_interp2(gridhr.x, gridhr.y, Qx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
+		self.tldUx = func.spline_interp2(gridhr.x, gridhr.y, Ux, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
+
+		self.tldTk = fft_scale.fft2(self.tldTx[::hrfactor, ::hrfactor], grid.deltx)
+		self.tldQk = fft_scale.fft2(self.tldQx[::hrfactor, ::hrfactor], grid.deltx)
+		self.tldUk = fft_scale.fft2(self.tldUx[::hrfactor, ::hrfactor], grid.deltx)
+
+		#raw TQU	
+		self.Tx	= Tx[::hrfactor, ::hrfactor]
+		self.Qx	= Qx[::hrfactor, ::hrfactor]
+		self.Ux	= Ux[::hrfactor, ::hrfactor]
+
+		self.Tk = fft_scale.fft2(self.Tx, grid.deltx)
+		self.Qk = fft_scale.fft2(self.Qx, grid.deltx)
+		self.Uk = fft_scale.fft2(self.Ux, grid.deltx)
 
 def conplot(ax, bx, cx, dx, grid):
 	plt.subplot(2,2,1)
@@ -153,74 +208,41 @@ def conplot(ax, bx, cx, dx, grid):
 	plt.imshow(dx, origin='lower', extent=[0, grid.sky_size_arcmin/60.,0, grid.sky_size_arcmin/60.])
 	plt.colorbar()
 	plt.show()
-	
-def all_ord_len_maps(grid, pad_portion):
-	spec = Spectrum(grid)
 
-	#noise
-	znt  = np.random.randn(grid.pix_len, grid.pix_len)
-	ntk  = np.fft.fft2(znt)*np.sqrt(spec.CNT)/grid.deltx
-
-	#high-res TQU and Phi for lensing
-	hrfactor= 3
-	gridhr  = Grid(grid.pix_size_arcmin/hrfactor, grid.pix_len*hrfactor, grid.FWHM, grid.Delta_T, grid.ell, grid.CTT, grid.CEE, grid.CPP)
-	spechr  = Spectrum(gridhr)
-
-	rd = ( gridhr.deltk/gridhr.deltx ) * np.random.randn( gridhr.pix_len, gridhr.pix_len )
-	tk = fft_scale.fft2( rd, gridhr.deltx) * np.sqrt(spechr.CTT/gridhr.deltk**2)
-	tx = fft_scale.ifft2r(tk, gridhr.deltx)		
-
-	rd = ( gridhr.deltk/gridhr.deltx ) * np.random.randn( gridhr.pix_len, gridhr.pix_len )
-	Ek = fft_scale.fft2( rd, gridhr.deltx) * np.sqrt(spechr.CEE/gridhr.deltk**2)
-	Qk = - Ek*np.cos(2.*gridhr.angle) #+ Bk*np.sin(2.*gridhr.angle)
-	Uk = - Ek*np.sin(2.*gridhr.angle) #- Bk*np.cos(2.*gridhr.angle)
-	Qx = fft_scale.ifft2r(Qk, gridhr.deltx)
-	Ux = fft_scale.ifft2r(Uk, gridhr.deltx)
-
-
-	rd     = (gridhr.deltk/gridhr.deltx) * np.random.randn(gridhr.pix_len, gridhr.pix_len)
-	phik   = fft_scale.fft2(rd, gridhr.deltx) * np.sqrt(spechr.CPP/gridhr.deltk**2)
-	phix   = fft_scale.ifft2r(phik, gridhr.deltx)		
-	phidx1 = fft_scale.ifft2r( (0.+1.j)* gridhr.k1* phik, gridhr.deltx )
-	phidx2 = fft_scale.ifft2r( (0.+1.j)* gridhr.k2* phik, gridhr.deltx )
-
-
-	#lensing T
-	tildetx = func.spline_interp2(gridhr.x, gridhr.y, tx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
-	tildetk = fft_scale.fft2(tildetx[::hrfactor, ::hrfactor], grid.deltx)
-	ytk     = tildetk + ntk
-
-	#lensing Q and U
-	tildeQx = func.spline_interp2(gridhr.x, gridhr.y, Qx, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
-	tildeUx = func.spline_interp2(gridhr.x, gridhr.y, Ux, gridhr.x+phidx1, gridhr.y+phidx2, pad_portion) 
-
-	conplot(phix, tildetx-tx, tx, tildetx, grid)
-	conplot(phix, (tildetx-tx)[::hrfactor, ::hrfactor], (tildeQx-Qx)[::hrfactor, ::hrfactor], (tildeUx-Ux)[::hrfactor, ::hrfactor], grid)
-
-
-def setbin(grid, lmax):
-	ell = grid.k.flatten()
-	nm, bins = np.histogram(ell, bins=np.arange(lmax-5, lmax))
-	print 'nm', nm.size, nm
-	tmp,bins = np.histogram(ell, bins=np.arange(lmax-5, lmax), weights = ell)
-	print 'bins', bins
-	print  tmp.size, tmp 
-	tmp[np.nonzero(nm)] /= nm[np.nonzero(nm)]
-	print 'ell', tmp
-	
 
 def setpar():
 	ell, DTT, DEE, DTE, Cdd, CTd = np.loadtxt('camb/test_scalCls.dat').T		
+	elltld, DTTtld, Dxxtld, Dyytld, Dzztld = np.loadtxt('camb/test_lensedCls.dat').T
 
 	CTT  = DTT*(2.*np.pi)/(ell*(ell+1))
 	CEE  = DEE*(2.*np.pi)/(ell*(ell+1))
 	CPP  = Cdd/(7.4311e12*ell**4)
 	grd  = Grid(2., 2**9, 1., 8., ell, CTT, CEE, CPP)
-	
-	setbin(grd, 300)
 
-	#all_ord_len_maps(grd, 0.05)
-	#scd_ord_len_maps(grd, 0.05)
+	lmax = 3000	
 
+	tt_avg 	  = Amp_avg()
+	tldtt_avg = Amp_avg()
+
+	for i in range(5):
+		print i 
+		maps = scd_ord_len_maps(grd, 0.05)
+		#maps = all_ord_len_maps(grd, 0.05)
+		rawtt  = Cl_est(maps.Tk, grd, lmax, 30)
+		tldtt  = Cl_est(maps.tldTk, grd, lmax, 30)
+		tt_avg.add(rawtt.cl)
+		tldtt_avg.add(tldtt.cl)
+
+	conplot(maps.phix, maps.tldTx-maps.Tx, maps.Tx, maps.tldTx, grd)
+	conplot(maps.phix, maps.tldTx-maps.Tx, maps.tldQx-maps.Qx, maps.tldUx-maps.Ux, grd)
+
+	dell = lambda x: x*(x+1.)/(2.*np.pi)
+	plt.semilogy(rawtt.cbins, dell(rawtt.cbins)*tt_avg.avg, 'ro', label=r'$TT$') #, yerr=tt_avg.std)
+	plt.semilogy(tldtt.cbins, dell(tldtt.cbins)*tldtt_avg.avg,'ko', label=r'$lensed \ TT$') # yerr =tldtt_avg.std)
+	plt.semilogy(ell, DTT, 'r-', label = r'$TT$')
+	plt.semilogy(elltld, DTTtld, 'k-', label = r'$lensed \ TT$')
+	plt.legend(loc='best')
+	plt.xlim(10,3000)
+	plt.show()
 
 setpar()
