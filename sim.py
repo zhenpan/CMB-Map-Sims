@@ -230,8 +230,8 @@ def setpar():
 	tldee_avg = Amp_avg()
 	tldbb_avg = Amp_avg()
 
-	for i in range(2):
-		print i 
+	for i in range(1):
+		#print i 
 		maps  = scd_ord_len_maps(grd, 0.05)
 		rawtt = Cl_est(maps.Tk, grd, lmax, 30)
 		rawee = Cl_est(maps.Ek, grd, lmax, 30)
@@ -244,8 +244,8 @@ def setpar():
 		ee_avg.add(rawee.cl); tldee_avg.add(tldee.cl)
 		tldbb_avg.add(tldbb.cl)
 
-	conplot(maps.phix, maps.tldTx-maps.Tx, maps.Tx, maps.tldTx, grd)
-	conplot(maps.phix, maps.tldTx-maps.Tx, maps.tldQx-maps.Qx, maps.tldUx-maps.Ux, grd)
+	#conplot(maps.phix, maps.tldTx-maps.Tx, maps.Tx, maps.tldTx, grd)
+	#conplot(maps.phix, maps.tldTx-maps.Tx, maps.tldQx-maps.Qx, maps.tldUx-maps.Ux, grd)
 
 	dell = lambda x: x*(x+1.)/(2.*np.pi)
 	plt.loglog(rawtt.cbins, dell(rawtt.cbins)*tt_avg.avg, 'r.') #, label=r'$TT$') 
@@ -260,7 +260,7 @@ def setpar():
 	plt.loglog(elltld, DEEtld, 'b-', label = r'$lensed \ EE$')
 	plt.loglog(elltld, DBBtld, 'y-', label = r'$lensed \ BB$')
 	plt.legend(loc='best')
-	plt.xlim(10, 6000)
+	plt.xlim(10, 10**4)
 	plt.show()
 
 setpar()
